@@ -78,7 +78,7 @@ Thumbs.db
 *.onnx
 *.bin
 
-# Data files
+# Data files (exclude large datasets but allow examples)
 *.jpg
 *.jpeg
 *.png
@@ -88,6 +88,14 @@ Thumbs.db
 *.mp4
 *.avi
 *.mov
+
+# Allow example images in docs folder
+!docs/examples/*.jpg
+!docs/examples/*.jpeg
+!docs/examples/*.png
+!docs/examples/*.gif
+!docs/examples/*.bmp
+!docs/examples/*.tiff
 
 # Cache files
 *.cache
