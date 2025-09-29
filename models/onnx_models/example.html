@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детекция повреждений автомобилей</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: #007bff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .image-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .image-panel {
+            flex: 1;
+        }
+        
+        .image-panel h3 {
+            margin-bottom: 15px;
+            color: #555;
+        }
+        
+        .image-display {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .image-display img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .detection-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .detection-box {
+            position: absolute;
+            border: 2px solid;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 2px 4px;
+            background: rgba(255, 255, 255, 0.8);
+        }
+        
+        .detection-box.dirt { border-color: #ffc107; color: #856404; }
+        .detection-box.scratch { border-color: #dc3545; color: #721c24; }
+        .detection-box.dent { border-color: #6f42c1; color: #3d1a78; }
+        
+        .results-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        
+        .result-item.dirt { border-left-color: #ffc107; }
+        .result-item.scratch { border-left-color: #dc3545; }
+        .result-item.dent { border-left-color: #6f42c1; }
+        
+        .result-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .result-details {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Детекция повреждений автомобилей</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <p>📁 Перетащите изображение сюда или нажмите для выбора</p>
+            <p><small>Поддерживаются форматы: JPG, PNG, WebP</small></p>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+        
+        <div class="image-container" id="imageContainer" style="display: none;">
+            <div class="image-panel">
+                <h3>Исходное изображение</h3>
+                <div class="image-display">
+                    <img id="originalImage" alt="Исходное изображение">
+                    <div class="detection-overlay" id="detectionOverlay"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="results-panel" id="resultsPanel" style="display: none;">
+            <h3>Результаты анализа</h3>
+            <div id="resultsList"></div>
+            
+            <div class="stats" id="statsPanel">
+                <div class="stat-item">
+                    <div class="stat-value" id="detectionCount">0</div>
+                    <div class="stat-label">Найдено повреждений</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="processingTime">0</div>
+                    <div class="stat-label">Время обработки (мс)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="imageSize">0x0</div>
+                    <div class="stat-label">Размер изображения</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loadingPanel" style="display: none;">
+            <p>🔄 Обработка изображения...</p>
+            <p><small>Это может занять несколько секунд</small></p>
+        </div>
+        
+        <div class="error" id="errorPanel" style="display: none;">
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createDamageDetectionPipeline, ImageUtils } from './dist/index.js';
+        
+        // Элементы DOM
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const imageContainer = document.getElementById('imageContainer');
+        const originalImage = document.getElementById('originalImage');
+        const detectionOverlay = document.getElementById('detectionOverlay');
+        const resultsPanel = document.getElementById('resultsPanel');
+        const resultsList = document.getElementById('resultsList');
+        const loadingPanel = document.getElementById('loadingPanel');
+        const errorPanel = document.getElementById('errorPanel');
+        const errorMessage = document.getElementById('errorMessage');
+        const statsPanel = document.getElementById('statsPanel');
+        
+        // Статистика
+        const detectionCount = document.getElementById('detectionCount');
+        const processingTime = document.getElementById('processingTime');
+        const imageSize = document.getElementById('imageSize');
+        
+        let pipeline = null;
+        let currentImageData = null;
+        
+        // Инициализация
+        async function init() {
+            try {
+                console.log('Инициализация системы детекции...');
+                pipeline = createDamageDetectionPipeline();
+                await pipeline.initialize();
+                console.log('Система готова к работе!');
+            } catch (error) {
+                showError('Ошибка инициализации: ' + error.message);
+            }
+        }
+        
+        // Обработка загрузки файла
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+        
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+        
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+        
+        // Обработка изображения
+        async function processFile(file) {
+            if (!pipeline) {
+                showError('Система не инициализирована');
+                return;
+            }
+            
+            try {
+                hideAllPanels();
+                loadingPanel.style.display = 'block';
+                
+                // Конвертируем файл в ImageData
+                currentImageData = await ImageUtils.fileToImageData(file);
+                
+                // Показываем изображение
+                const imageUrl = URL.createObjectURL(file);
+                originalImage.src = imageUrl;
+                imageContainer.style.display = 'flex';
+                
+                // Обрабатываем изображение
+                const results = await pipeline.processImage(currentImageData);
+                
+                // Показываем результаты
+                displayResults(results);
+                
+            } catch (error) {
+                showError('Ошибка обработки: ' + error.message);
+            } finally {
+                loadingPanel.style.display = 'none';
+            }
+        }
+        
+        // Отображение результатов
+        function displayResults(results) {
+            // Очищаем предыдущие результаты
+            detectionOverlay.innerHTML = '';
+            resultsList.innerHTML = '';
+            
+            // Показываем статистику
+            detectionCount.textContent = results.detections.length;
+            processingTime.textContent = Math.round(results.processingTime);
+            imageSize.textContent = `${results.imageSize.width}x${results.imageSize.height}`;
+            
+            // Обрабатываем каждое обнаружение
+            results.detections.forEach((detection, index) => {
+                // Добавляем рамку на изображение
+                addDetectionBox(detection, index);
+                
+                // Добавляем результат в список
+                addResultItem(detection, index);
+            });
+            
+            resultsPanel.style.display = 'block';
+        }
+        
+        // Добавление рамки обнаружения
+        function addDetectionBox(detection, index) {
+            const box = document.createElement('div');
+            box.className = `detection-box ${detection.box.class}`;
+            box.style.left = `${(detection.box.x / currentImageData.width) * 100}%`;
+            box.style.top = `${(detection.box.y / currentImageData.height) * 100}%`;
+            box.style.width = `${(detection.box.width / currentImageData.width) * 100}%`;
+            box.style.height = `${(detection.box.height / currentImageData.height) * 100}%`;
+            box.textContent = `${detection.box.class} (${Math.round(detection.box.confidence * 100)}%)`;
+            
+            detectionOverlay.appendChild(box);
+        }
+        
+        // Добавление элемента результата
+        function addResultItem(detection, index) {
+            const item = document.createElement('div');
+            item.className = `result-item ${detection.box.class}`;
+            
+            const severityText = getSeverityText(detection.severityClass);
+            const classText = getClassText(detection.box.class);
+            
+            item.innerHTML = `
+                <div class="result-header">
+                    ${classText} - ${severityText}
+                </div>
+                <div class="result-details">
+                    <strong>Детекция:</strong> ${Math.round(detection.box.confidence * 100)}%<br>
+                    <strong>Степень тяжести:</strong> ${Math.round(detection.severityConfidence * 100)}%<br>
+                    <strong>Координаты:</strong> (${Math.round(detection.box.x)}, ${Math.round(detection.box.y)})<br>
+                    <strong>Размер:</strong> ${Math.round(detection.box.width)}×${Math.round(detection.box.height)}px
+                </div>
+            `;
+            
+            resultsList.appendChild(item);
+        }
+        
+        // Вспомогательные функции
+        function getClassText(className) {
+            const texts = {
+                'dirt': 'Грязь',
+                'scratch': 'Царапина',
+                'dent': 'Вмятина'
+            };
+            return texts[className] || className;
+        }
+        
+        function getSeverityText(severityClass) {
+            const texts = {
+                'dirt': 'Грязь',
+                'scratch_low': 'Царапина (легкая)',
+                'scratch_med': 'Царапина (средняя)',
+                'scratch_high': 'Царапина (сильная)',
+                'dent_low': 'Вмятина (легкая)',
+                'dent_med': 'Вмятина (средняя)',
+                'dent_high': 'Вмятина (сильная)'
+            };
+            return texts[severityClass] || severityClass;
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorPanel.style.display = 'block';
+            hideAllPanels();
+        }
+        
+        function hideAllPanels() {
+            imageContainer.style.display = 'none';
+            resultsPanel.style.display = 'none';
+            loadingPanel.style.display = 'none';
+            errorPanel.style.display = 'none';
+        }
+        
+        // Запуск приложения
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "damage-detection-frontend",
+  "version": "1.0.0",
+  "description": "Frontend integration for car damage detection ONNX models",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "onnxruntime-web": "^1.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,9 @@
+names:
+- dirt
+- scratch
+- dent
+nc: 3
+path: C:\Users\Lenovo\Desktop\avangard\yolo_data_3class
+train: train/images
+val: val/images
+test: test/images
